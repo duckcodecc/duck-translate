@@ -498,6 +498,10 @@
     }
   });
 
-  // Initialize YouTube subtitle support
-  initYouTubeSubtitle();
+  // Initialize YouTube subtitle support (non-blocking)
+  try {
+    initYouTubeSubtitle();
+  } catch (e) {
+    console.error('Duck Translate: Init error', e);
+  }
 })();
