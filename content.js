@@ -311,7 +311,7 @@
 
     var popup = document.createElement('div');
     popup.id = 'duck-translate-popup';
-    popup.innerHTML = '<div class="duck-popup-header">' +
+    popup.innerHTML = '<div class="duck-popup-header" style="cursor:move;">' +
       '<span class="duck-popup-title">Duck Translate</span>' +
       '<button class="duck-popup-close">&times;</button>' +
       '</div>' +
@@ -323,6 +323,32 @@
     popup.style.left = x + 'px';
     popup.style.top = y + 'px';
     adjustPopupPosition(popup);
+
+    // Add drag functionality
+    var header = popup.querySelector('.duck-popup-header');
+    var isDragging = false;
+    var dragOffsetX = 0;
+    var dragOffsetY = 0;
+
+    header.addEventListener('mousedown', function(e) {
+      if (e.target.classList.contains('duck-popup-close')) return;
+      isDragging = true;
+      dragOffsetX = e.clientX - popup.offsetLeft;
+      dragOffsetY = e.clientY - popup.offsetTop;
+      popup.style.transition = 'none';
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      var newX = e.clientX - dragOffsetX;
+      var newY = e.clientY - dragOffsetY;
+      popup.style.left = newX + 'px';
+      popup.style.top = newY + 'px';
+    });
+
+    document.addEventListener('mouseup', function() {
+      isDragging = false;
+    });
 
     popup.querySelector('.duck-popup-close').addEventListener('click', function(e) {
       e.stopPropagation();
