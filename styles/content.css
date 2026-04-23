@@ -161,6 +161,18 @@
   box-shadow: 0 2px 8px rgba(255, 180, 80, 0.15);
 }
 
+.duck-popup-pinyin {
+  color: #B89F8A;
+  font-size: 13px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #FFF8F0;
+  border-radius: 8px;
+  font-style: italic;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
 .duck-popup-actions {
   display: flex;
   gap: 10px;
