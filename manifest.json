@@ -34,11 +34,6 @@
       "js": ["content.js"],
       "css": ["styles/content.css"],
       "run_at": "document_end"
-    },
-    {
-      "matches": ["*://*.youtube.com/*"],
-      "js": ["video-translator.js"],
-      "run_at": "document_end"
     }
   ],
   "options_ui": {
