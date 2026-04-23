@@ -1,0 +1,54 @@
+{
+  "extName": {
+    "message": "鸭鸭翻译",
+    "description": "扩展名称"
+  },
+  "extDescription": {
+    "message": "简单的本地划词翻译插件，使用 MiniMax AI",
+    "description": "扩展描述"
+  },
+  "translation": {
+    "message": "翻译",
+    "description": "翻译标签"
+  },
+  "settings": {
+    "message": "设置",
+    "description": "设置标签"
+  },
+  "sourceLanguage": {
+    "message": "源语言",
+    "description": "源语言标签"
+  },
+  "targetLanguage": {
+    "message": "目标语言",
+    "description": "目标语言标签"
+  },
+  "apiKey": {
+    "message": "API 密钥",
+    "description": "API 密钥标签"
+  },
+  "save": {
+    "message": "保存",
+    "description": "保存按钮"
+  },
+  "cancel": {
+    "message": "取消",
+    "description": "取消按钮"
+  },
+  "translating": {
+    "message": "翻译中...",
+    "description": "翻译状态"
+  },
+  "error": {
+    "message": "翻译错误",
+    "description": "错误消息"
+  },
+  "noSelection": {
+    "message": "请选择文本进行翻译",
+    "description": "未选择文本消息"
+  },
+  "auto": {
+    "message": "自动检测",
+    "description": "自动检测语言"
+  }
+}

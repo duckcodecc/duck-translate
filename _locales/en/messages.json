@@ -1,0 +1,54 @@
+{
+  "extName": {
+    "message": "Duck Translate",
+    "description": "Name of the extension"
+  },
+  "extDescription": {
+    "message": "Simple local selection translation plugin using MiniMax AI",
+    "description": "Description of the extension"
+  },
+  "translation": {
+    "message": "Translation",
+    "description": "Translation label"
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Settings label"
+  },
+  "sourceLanguage": {
+    "message": "Source Language",
+    "description": "Source language label"
+  },
+  "targetLanguage": {
+    "message": "Target Language",
+    "description": "Target language label"
+  },
+  "apiKey": {
+    "message": "API Key",
+    "description": "API key label"
+  },
+  "save": {
+    "message": "Save",
+    "description": "Save button"
+  },
+  "cancel": {
+    "message": "Cancel",
+    "description": "Cancel button"
+  },
+  "translating": {
+    "message": "Translating...",
+    "description": "Translating status"
+  },
+  "error": {
+    "message": "Translation error",
+    "description": "Error message"
+  },
+  "noSelection": {
+    "message": "Please select text to translate",
+    "description": "No selection message"
+  },
+  "auto": {
+    "message": "Auto Detect",
+    "description": "Auto detect language"
+  }
+}

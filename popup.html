@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duck Translate</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 340px;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      font-size: 14px;
+      background: linear-gradient(180deg, #fff9f0 0%, #fff5e6 100%);
+      color: #4a3f35;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #FF9A56 0%, #FFBD59 50%, #FFE066 100%);
+      padding: 24px 20px 32px;
+      text-align: center;
+      position: relative;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 20px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'%3E%3Cpath d='M0 20 Q25 0 50 10 Q75 20 100 0 L100 20 Z' fill='%23fff9f0'/%3E%3C/svg%3E") no-repeat center bottom;
+      background-size: 100% 100%;
+    }
+
+    .duck-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    .duck-icon {
+      font-size: 52px;
+      display: block;
+      animation: bounce 2s ease-in-out infinite;
+      filter: drop-shadow(0 4px 8px rgba(255, 150, 50, 0.4));
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .header h1 {
+      font-size: 22px;
+      color: #fff;
+      font-weight: 800;
+      text-shadow: 0 2px 8px rgba(200, 100, 30, 0.3);
+      margin-top: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .header p {
+      font-size: 12px;
+      color: rgba(255,255,255,0.9);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    .content {
+      padding: 24px 20px 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .input-wrapper textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #F0E4D7;
+      border-radius: 14px;
+      font-size: 14px;
+      background: #FFFDFB;
+      color: #4a3f35;
+      resize: none;
+      transition: all 0.3s ease;
+      line-height: 1.5;
+    }
+
+    .input-wrapper textarea:focus {
+      outline: none;
+      border-color: #FFBD59;
+      box-shadow: 0 0 0 4px rgba(255, 189, 89, 0.2);
+    }
+
+    .input-wrapper textarea::placeholder {
+      color: #C4B5A5;
+    }
+
+    .lang-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .lang-box {
+      flex: 1;
+      position: relative;
+    }
+
+    .lang-box label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #B89F8A;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .lang-box select {
+      width: 100%;
+      padding: 10px 32px 10px 12px;
+      border: 2px solid #F0E4D7;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      background: #FFFDFB;
+      color: #4a3f35;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23B89F8A' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      transition: all 0.2s;
+    }
+
+    .lang-box select:focus {
+      outline: none;
+      border-color: #FFBD59;
+      box-shadow: 0 0 0 3px rgba(255, 189, 89, 0.2);
+    }
+
+    .swap-icon {
+      font-size: 18px;
+      color: #D4C4B0;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 4px;
+      flex-shrink: 0;
+      margin-top: 18px;
+    }
+
+    .swap-icon:hover {
+      color: #FF9A56;
+      transform: rotate(180deg);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #FF9A56 0%, #FFBD59 100%);
+      color: #fff;
+      text-shadow: 0 1px 2px rgba(180, 80, 20, 0.3);
+      box-shadow: 0 4px 16px rgba(255, 150, 80, 0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 150, 80, 0.5);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: #FFFDFB;
+      color: #B89F8A;
+      margin-top: 10px;
+      border: 2px solid #F0E4D7;
+      font-weight: 600;
+    }
+
+    .btn-secondary:hover {
+      border-color: #FFBD59;
+      color: #FF9A56;
+    }
+
+    .footer {
+      padding: 14px 20px;
+      background: linear-gradient(180deg, rgba(255,250,240,0) 0%, rgba(255,245,230,0.5) 100%);
+      text-align: center;
+      border-top: 1px solid rgba(240, 228, 215, 0.5);
+    }
+
+    .footer a {
+      color: #FF9A56;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .footer a:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+
+    .status {
+      padding: 10px 14px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .status.error {
+      background: #FFF0E8;
+      color: #E55B2B;
+      border: 1px solid #FFD9C7;
+    }
+
+    .status.success {
+      background: #FFF8E8;
+      color: #D4852B;
+      border: 1px solid #FFE9C7;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="duck-wrapper">
+      <span class="duck-icon">🦆</span>
+    </div>
+    <h1>Duck Translate</h1>
+    <p>Fast & Fun Translation</p>
+  </div>
+
+  <div class="content">
+    <div id="status" class="status"></div>
+
+    <div class="input-wrapper">
+      <textarea id="text" rows="3" placeholder="Enter text or select on page..."></textarea>
+    </div>
+
+    <div class="lang-container">
+      <div class="lang-box">
+        <label for="sourceLang">From</label>
+        <select id="sourceLang">
+          <option value="auto">Auto</option>
+        </select>
+      </div>
+
+      <div class="swap-icon">⇄</div>
+
+      <div class="lang-box">
+        <label for="targetLang">To</label>
+        <select id="targetLang">
+          <option value="zh-CN">中文</option>
+          <option value="en">English</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+          <option value="ru">Русский</option>
+          <option value="ar">العربية</option>
+          <option value="pt">Português</option>
+          <option value="it">Italiano</option>
+          <option value="th">ไทย</option>
+          <option value="vi">Tiếng Việt</option>
+          <option value="id">Indonesia</option>
+          <option value="ms">Melayu</option>
+          <option value="zh-TW">繁體</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="translateBtn" class="btn btn-primary">
+      <span>✨</span> Translate
+    </button>
+    <button id="settingsBtn" class="btn btn-secondary">
+      ⚙️ Settings
+    </button>
+  </div>
+
+  <div class="footer">
+    <a href="#" id="openSettings">Open Full Settings</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

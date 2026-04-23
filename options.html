@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Duck Translate - Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      background: #fffef5;
+      color: #5a4a3a;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 580px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .header-icon {
+      font-size: 56px;
+      margin-bottom: 8px;
+      filter: drop-shadow(0 4px 8px rgba(255, 179, 71, 0.3));
+    }
+
+    .header h1 {
+      font-size: 28px;
+      color: #6b5344;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .header p {
+      color: #8b7355;
+      font-size: 14px;
+    }
+
+    .card {
+      background: #fffdf8;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 16px rgba(139, 90, 43, 0.1);
+      border: 2px solid #f5efe0;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #6b5344;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 2px dashed #f0e6d3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #7a6a5a;
+      font-size: 13px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #f0e6d3;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: all 0.2s;
+      background: #fffdf8;
+      color: #5a4a3a;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #ffb347;
+      box-shadow: 0 0 0 3px rgba(255, 179, 71, 0.2);
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: #c9b99a;
+    }
+
+    .form-group .hint {
+      font-size: 12px;
+      color: #a08060;
+      margin-top: 8px;
+    }
+
+    .form-group .hint a {
+      color: #ff9500;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .form-group .hint a:hover {
+      color: #ff7b00;
+      text-decoration: underline;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .btn {
+      padding: 14px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #ffb347 0%, #ffcc5c 100%);
+      color: #6b5344;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(255, 179, 71, 0.35);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(255, 179, 71, 0.45);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status-message {
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .status-message.show {
+      display: block;
+    }
+
+    .status-message.success {
+      background: #fff8e1;
+      color: #f57c00;
+      border: 1px solid #ffe082;
+    }
+
+    .status-message.error {
+      background: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffe0b2;
+    }
+
+    .info-box {
+      background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+      border: 2px solid #ffe082;
+      border-radius: 14px;
+      padding: 18px;
+      margin-top: 24px;
+    }
+
+    .info-box h3 {
+      font-size: 14px;
+      color: #e65100;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-box p {
+      font-size: 13px;
+      color: #7a5a3a;
+      line-height: 1.8;
+    }
+
+    .info-box strong {
+      color: #5a4030;
+    }
+
+    .shortcut-badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.7);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+      margin-left: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-icon">🦆</div>
+      <h1>Duck Translate</h1>
+      <p>Fast & Fun Translation</p>
+    </div>
+
+    <div id="statusMessage" class="status-message"></div>
+
+    <div class="card">
+      <div class="card-title">🔑 API Configuration</div>
+
+      <div class="form-group">
+        <label for="apiKey">MiniMax API Key</label>
+        <input type="password" id="apiKey" placeholder="Enter your MiniMax API key">
+        <div class="hint">
+          Get your API key from <a href="https://platform.minimaxi.chat/usercenter/basic/interface-key" target="_blank">MiniMax Platform</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🌐 Language Settings</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="sourceLang">Default Source</label>
+          <select id="sourceLang">
+            <option value="auto">Auto Detect</option>
+            <option value="zh-CN">中文</option>
+            <option value="zh-TW">繁體</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="ru">Русский</option>
+            <option value="ar">العربية</option>
+            <option value="pt">Português</option>
+            <option value="it">Italiano</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="targetLang">Default Target</label>
+          <select id="targetLang">
+            <option value="zh-CN">中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="ru">Русский</option>
+            <option value="ar">العربية</option>
+            <option value="pt">Português</option>
+            <option value="it">Italiano</option>
+            <option value="th">ไทย</option>
+            <option value="vi">Tiếng Việt</option>
+            <option value="id">Indonesia</option>
+            <option value="ms">Melayu</option>
+            <option value="zh-TW">繁體</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💾 Actions</div>
+      <button id="saveBtn" class="btn btn-primary">✨ Save Settings</button>
+    </div>
+
+    <div class="info-box">
+      <h3>📖 How to Use</h3>
+      <p>
+        <strong>1.</strong> Enter your MiniMax API key and save<br>
+        <strong>2.</strong> Select text on any webpage → Translation popup appears<br>
+        <strong>3.</strong> Right-click selected text → "Translate with Duck"<br>
+        <strong>4.</strong> On videos with subtitles → Click 🦆 button to translate subtitles
+      </p>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
