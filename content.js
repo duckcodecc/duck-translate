@@ -114,7 +114,7 @@
   function getInjectScript() {
     return '(' + function() {
       var CHANNEL = 'duck-subtitle-inject';
-      var SUBTITLE_REGEX = /youtube\.com\\/api\\/timedtext|timedtext/;
+      var SUBTITLE_REGEX = /youtube\.com.*timedtext/;
 
       var originalXHROpen = XMLHttpRequest.prototype.open;
       var originalXHRSend = XMLHttpRequest.prototype.send;
