@@ -1,82 +1,82 @@
 # 🦆 Duck Translate
 
-简单、高效的本地划词翻译插件，使用 MiniMax AI 提供翻译支持。
+A simple and efficient local selection translation extension, powered by MiniMax AI.
 
 [English](README.md) | [中文](README_zh.md)
 
-## ✨ 功能特点
+## ✨ Features
 
-- **划词翻译** - 选中文本后自动弹出翻译窗口，即选即译
-- **YouTube 字幕翻译** - 轻松翻译 YouTube 视频字幕
-- **多语言支持** - 支持中文、英文、日文、韩文、法文、德文等 16 种语言
-- **简洁美观** - 可爱活泼的 UI 设计
-- **本地运行** - 无需上传数据，保护隐私
+- **Selection Translation** - Select text and the translation popup appears instantly
+- **YouTube Subtitle Translation** - Easily translate YouTube video subtitles
+- **Multi-language Support** - Supports 16 languages including Chinese, English, Japanese, Korean, French, German, etc.
+- **Beautiful Design** - Cute and playful UI
+- **Local Processing** - No data uploaded, privacy protected
 
-## 📦 安装
+## 📦 Installation
 
-1. 下载本仓库代码
-2. 打开 Chrome 扩展管理页面 (`chrome://extensions/`)
-3. 开启「开发者模式」
-4. 点击「加载已解压的扩展程序」
-5. 选择本仓库文件夹
+1. Download this repository
+2. Open Chrome Extensions page (`chrome://extensions/`)
+3. Enable "Developer Mode"
+4. Click "Load unpacked"
+5. Select this repository folder
 
-## 🔧 配置
+## 🔧 Setup
 
-1. 点击扩展图标打开设置页面
-2. 输入你的 [MiniMax API Key](https://platform.minimaxi.chat/usercenter/basic/interface-key)
-3. 设置默认源语言和目标语言
-4. 保存设置
+1. Click the extension icon to open settings
+2. Enter your [MiniMax API Key](https://platform.minimaxi.chat/usercenter/basic/interface-key)
+3. Set default source and target languages
+4. Save settings
 
-## 🚀 使用方法
+## 🚀 Usage
 
-### 划词翻译
-1. 在任意网页选中文本
-2. 翻译弹窗自动出现
-3. 点击按钮复制或交换翻译方向
+### Selection Translation
+1. Select text on any webpage
+2. Translation popup appears automatically
+3. Click buttons to copy or swap translation direction
 
-### YouTube 字幕翻译
-1. 打开 YouTube 视频页面
-2. 点击视频右下角 CC 按钮开启字幕
-3. 点击页面右上角 🦆 按钮
-4. 选择字幕轨道并点击翻译
+### YouTube Subtitle Translation
+1. Open a YouTube video page
+2. Click the CC button to enable subtitles
+3. Click the 🦆 button in the top-right corner
+4. Select subtitle track and click translate
 
-## ⚙️ 支持的语言
+## ⚙️ Supported Languages
 
-| 语言 | 代码 |
-|------|------|
-| 自动检测 | auto |
-| 中文简体 | zh-CN |
-| 中文繁体 | zh-TW |
-| 英语 | en |
-| 日语 | ja |
-| 韩语 | ko |
-| 法语 | fr |
-| 德语 | de |
-| 西班牙语 | es |
-| 俄语 | ru |
-| 阿拉伯语 | ar |
-| 葡萄牙语 | pt |
-| 意大利语 | it |
-| 泰语 | th |
-| 越南语 | vi |
-| 印尼语 | id |
-| 马来语 | ms |
+| Language | Code |
+|----------|------|
+| Auto Detect | auto |
+| Chinese (Simplified) | zh-CN |
+| Chinese (Traditional) | zh-TW |
+| English | en |
+| Japanese | ja |
+| Korean | ko |
+| French | fr |
+| German | de |
+| Spanish | es |
+| Russian | ru |
+| Arabic | ar |
+| Portuguese | pt |
+| Italian | it |
+| Thai | th |
+| Vietnamese | vi |
+| Indonesian | id |
+| Malay | ms |
 
-## 🔒 隐私说明
+## 🔒 Privacy
 
-- 所有翻译请求直接发送给 MiniMax API
-- 不收集、不存储任何用户数据
-- 本地扩展，无服务器端组件
+- All translation requests are sent directly to MiniMax API
+- No user data is collected or stored
+- Local extension, no server-side components
 
-## 📄 许可证
+## 📄 License
 
-本项目采用 [GNU General Public License v3.0](LICENSE) 开源许可证。
+This project is open source under [GNU General Public License v3.0](LICENSE).
 
-## 🤝 贡献
+## 🤝 Contributing
 
-欢迎提交 Issue 和 Pull Request！
+Issues and Pull Requests are welcome!
 
-## 📧 联系我们
+## 📧 Contact
 
 - GitHub: https://github.com/duckcodecc/duck-translate
-- 问题反馈: https://github.com/duckcodecc/duck-translate/issues
+- Issues: https://github.com/duckcodecc/duck-translate/issues
