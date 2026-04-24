@@ -227,6 +227,180 @@
       font-family: monospace;
       margin-left: 4px;
     }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #7a6a5a;
+      font-size: 13px;
+    }
+
+    .toggle-label input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #ffb347;
+    }
+
+    .toggle-label span {
+      user-select: none;
+    }
+
+    .features-card {
+      background: linear-gradient(135deg, #fffcf5 0%, #fff8eb 100%);
+      border: 2px solid #ffe4b8;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-top: 16px;
+    }
+
+    .features-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #8b6340;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px dashed #f0dcc0;
+    }
+
+    .feature-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .feature-item:first-child {
+      padding-top: 0;
+    }
+
+    .feature-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .feature-name {
+      font-weight: 600;
+      color: #5a4530;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feature-desc {
+      font-size: 11px;
+      color: #a08060;
+    }
+
+    .feature-toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .feature-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .feature-toggle .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #e0d5c5;
+      border-radius: 24px;
+      transition: 0.3s;
+    }
+
+    .feature-toggle .slider::before {
+      position: absolute;
+      content: '';
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    .feature-toggle input:checked + .slider {
+      background: linear-gradient(135deg, #ffb347 0%, #ff9500 100%);
+    }
+
+    .feature-toggle input:checked + .slider::before {
+      transform: translateX(20px);
+    }
+
+    .tts-settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .range-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .range-control input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      background: #f0e6d3;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .range-control input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffb347 0%, #ff9500 100%);
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .range-control input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffb347 0%, #ff9500 100%);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .range-value {
+      width: 40px;
+      text-align: right;
+      font-size: 12px;
+      color: #7a6a5a;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -294,6 +468,88 @@
             <option value="ms">Melayu</option>
             <option value="zh-TW">繁體</option>
           </select>
+        </div>
+      </div>
+
+      <div class="features-card">
+        <div class="features-card-title">✨ Extra Features</div>
+
+        <div class="feature-item">
+          <div class="feature-info">
+            <div class="feature-name">🔤 Pinyin / Phonetic</div>
+            <div class="feature-desc">Show pinyin (Chinese) or IPA (English)</div>
+          </div>
+          <label class="feature-toggle">
+            <input type="checkbox" id="showPinyin" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-info">
+            <div class="feature-name">🔊 TTS Audio</div>
+            <div class="feature-desc">Pre-generate audio for instant playback</div>
+          </div>
+          <label class="feature-toggle">
+            <input type="checkbox" id="enableTTS" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔊 TTS Settings</div>
+
+      <div class="form-group">
+        <label for="ttsModel">TTS Model</label>
+        <select id="ttsModel"></select>
+        <div class="hint">
+          Choose between quality and speed
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="ttsVoice">Voice</label>
+        <select id="ttsVoice"></select>
+        <div class="hint">
+          Choose the voice for TTS
+        </div>
+      </div>
+
+      <div class="tts-settings-grid">
+        <div class="form-group">
+          <label for="ttsEmotion">Emotion</label>
+          <select id="ttsEmotion"></select>
+        </div>
+
+        <div class="form-group">
+          <label for="ttsFormat">Audio Format</label>
+          <select id="ttsFormat"></select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="ttsSpeed">Speed</label>
+        <div class="range-control">
+          <input type="range" id="ttsSpeed" min="0.5" max="2" step="0.1" value="1">
+          <span class="range-value" id="ttsSpeedValue">1.0</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="ttsVolume">Volume</label>
+        <div class="range-control">
+          <input type="range" id="ttsVolume" min="0" max="2" step="0.1" value="1">
+          <span class="range-value" id="ttsVolumeValue">1.0</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="ttsPitch">Pitch</label>
+        <div class="range-control">
+          <input type="range" id="ttsPitch" min="-1" max="1" step="0.1" value="0">
+          <span class="range-value" id="ttsPitchValue">0</span>
         </div>
       </div>
     </div>

@@ -1,90 +1,162 @@
 // Duck Translate - Options Page Script
 
-document.addEventListener('DOMContentLoaded', async () => {
-  const apiKeyInput = document.getElementById('apiKey');
-  const sourceLangSelect = document.getElementById('sourceLang');
-  const targetLangSelect = document.getElementById('targetLang');
-  const saveBtn = document.getElementById('saveBtn');
-  const statusMessage = document.getElementById('statusMessage');
+// DOM Elements
+const elements = {
+  apiKey: document.getElementById('apiKey'),
+  sourceLang: document.getElementById('sourceLang'),
+  targetLang: document.getElementById('targetLang'),
+  showPinyin: document.getElementById('showPinyin'),
+  enableTTS: document.getElementById('enableTTS'),
+  ttsModel: document.getElementById('ttsModel'),
+  ttsVoice: document.getElementById('ttsVoice'),
+  ttsEmotion: document.getElementById('ttsEmotion'),
+  ttsFormat: document.getElementById('ttsFormat'),
+  ttsSpeed: document.getElementById('ttsSpeed'),
+  ttsVolume: document.getElementById('ttsVolume'),
+  ttsPitch: document.getElementById('ttsPitch'),
+  ttsSpeedValue: document.getElementById('ttsSpeedValue'),
+  ttsVolumeValue: document.getElementById('ttsVolumeValue'),
+  ttsPitchValue: document.getElementById('ttsPitchValue'),
+  saveBtn: document.getElementById('saveBtn'),
+  statusMessage: document.getElementById('statusMessage')
+};
 
-  console.log('Duck Translate Options: page loaded');
+// Load TTS settings data
+function loadTTSSettings() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action: 'getTTSSettings' }, (response) => {
+      resolve(response);
+    });
+  });
+}
 
-  // 加载当前设置
-  async function loadSettings() {
-    console.log('Duck Translate Options: loading settings...');
-    try {
-      const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
-      console.log('Duck Translate Options: getSettings response:', response);
+// Load settings from storage
+function loadSettings() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action: 'getSettings' }, (response) => {
+      resolve(response?.settings || {});
+    });
+  });
+}
 
-      if (response && response.settings) {
-        apiKeyInput.value = response.settings.apiKey || '';
-        sourceLangSelect.value = response.settings.sourceLang || 'auto';
-        targetLangSelect.value = response.settings.targetLang || 'zh-CN';
-        console.log('Duck Translate Options: settings loaded successfully');
+// Save settings to storage
+function saveSettings(settings) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage({ action: 'saveSettings', settings }, (response) => {
+      if (response?.success) {
+        resolve();
       } else {
-        console.log('Duck Translate Options: no settings found, using defaults');
+        reject(new Error(response?.error || 'Failed to save settings'));
       }
-    } catch (error) {
-      console.error('Duck Translate Options: Failed to load settings:', error);
-      showStatus('Failed to load settings: ' + error.message, 'error');
+    });
+  });
+}
+
+// Populate select options
+function populateSelect(selectElement, options, selectedValue) {
+  if (!selectElement) return;
+  
+  selectElement.innerHTML = '';
+  options.forEach(option => {
+    const optionElement = document.createElement('option');
+    optionElement.value = option.value;
+    optionElement.textContent = option.label;
+    if (option.value === selectedValue) {
+      optionElement.selected = true;
     }
+    selectElement.appendChild(optionElement);
+  });
+}
+
+// Update range value display
+function setupRangeListeners() {
+  elements.ttsSpeed.addEventListener('input', (e) => {
+    elements.ttsSpeedValue.textContent = e.target.value;
+  });
+  
+  elements.ttsVolume.addEventListener('input', (e) => {
+    elements.ttsVolumeValue.textContent = e.target.value;
+  });
+  
+  elements.ttsPitch.addEventListener('input', (e) => {
+    elements.ttsPitchValue.textContent = e.target.value;
+  });
+}
+
+// Show status message
+function showStatus(message, isError = false) {
+  elements.statusMessage.textContent = message;
+  elements.statusMessage.className = `status-message ${isError ? 'error' : 'success'} show`;
+  
+  setTimeout(() => {
+    elements.statusMessage.classList.remove('show');
+  }, 3000);
+}
+
+// Initialize page
+async function init() {
+  try {
+    // Load TTS settings data
+    const ttsSettings = await loadTTSSettings();
+    
+    // Load current settings
+    const settings = await loadSettings();
+    
+    // Populate form fields
+    elements.apiKey.value = settings.apiKey || '';
+    elements.sourceLang.value = settings.sourceLang || 'auto';
+    elements.targetLang.value = settings.targetLang || 'zh-CN';
+    elements.showPinyin.checked = settings.showPinyin !== false;
+    elements.enableTTS.checked = settings.enableTTS !== false;
+    
+    // Populate TTS settings
+    populateSelect(elements.ttsModel, ttsSettings.models || [], settings.ttsModel || 'speech-2.8-hd');
+    populateSelect(elements.ttsVoice, ttsSettings.voices || [], settings.ttsVoiceId || 'male-qn-qingse');
+    populateSelect(elements.ttsEmotion, ttsSettings.emotions || [], settings.ttsEmotion || 'neutral');
+    populateSelect(elements.ttsFormat, ttsSettings.formats || [], settings.ttsFormat || 'mp3');
+    
+    elements.ttsSpeed.value = settings.ttsSpeed || 1.0;
+    elements.ttsVolume.value = settings.ttsVolume || 1.0;
+    elements.ttsPitch.value = settings.ttsPitch || 0;
+    
+    elements.ttsSpeedValue.textContent = elements.ttsSpeed.value;
+    elements.ttsVolumeValue.textContent = elements.ttsVolume.value;
+    elements.ttsPitchValue.textContent = elements.ttsPitch.value;
+    
+    // Setup range listeners
+    setupRangeListeners();
+    
+  } catch (error) {
+    console.error('Error loading settings:', error);
   }
+}
 
-  // 显示状态消息
-  function showStatus(message, type = 'success') {
-    console.log('Duck Translate Options: showing status:', message, type);
-    statusMessage.textContent = message;
-    statusMessage.className = `status-message show ${type}`;
-
-    setTimeout(() => {
-      statusMessage.classList.remove('show');
-    }, 5000);
-  }
-
-  // 保存设置
-  async function saveSettings() {
+// Save button click handler
+async function handleSave() {
+  try {
     const settings = {
-      apiKey: apiKeyInput.value.trim(),
-      sourceLang: sourceLangSelect.value,
-      targetLang: targetLangSelect.value
+      apiKey: elements.apiKey.value,
+      sourceLang: elements.sourceLang.value,
+      targetLang: elements.targetLang.value,
+      showPinyin: elements.showPinyin.checked,
+      enableTTS: elements.enableTTS.checked,
+      ttsModel: elements.ttsModel.value,
+      ttsVoiceId: elements.ttsVoice.value,
+      ttsEmotion: elements.ttsEmotion.value,
+      ttsFormat: elements.ttsFormat.value,
+      ttsSpeed: parseFloat(elements.ttsSpeed.value),
+      ttsVolume: parseFloat(elements.ttsVolume.value),
+      ttsPitch: parseFloat(elements.ttsPitch.value)
     };
-
-    console.log('Duck Translate Options: saving settings:', settings);
-
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'saveSettings',
-        settings: settings
-      });
-
-      console.log('Duck Translate Options: saveSettings response:', response);
-
-      if (response && response.success) {
-        showStatus('Settings saved successfully!', 'success');
-      } else {
-        showStatus(response?.error || 'Failed to save settings', 'error');
-      }
-    } catch (error) {
-      console.error('Duck Translate Options: Failed to save settings:', error);
-      showStatus('Failed to save settings: ' + error.message, 'error');
-    }
+    
+    await saveSettings(settings);
+    showStatus('Settings saved successfully!');
+    
+  } catch (error) {
+    showStatus('Error saving settings: ' + error.message, true);
   }
+}
 
-  // 保存按钮点击
-  saveBtn.addEventListener('click', () => {
-    console.log('Duck Translate Options: save button clicked');
-    saveSettings();
-  });
-
-  // 键盘快捷键 Ctrl+S 保存
-  document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      e.preventDefault();
-      console.log('Duck Translate Options: Ctrl+S pressed');
-      saveSettings();
-    }
-  });
-
-  // 初始化加载设置
-  await loadSettings();
-});
+// Event listeners
+document.addEventListener('DOMContentLoaded', init);
+elements.saveBtn.addEventListener('click', handleSave);
