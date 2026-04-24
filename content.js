@@ -1,610 +1,316 @@
 // Duck Translate - Content Script
-
 (function() {
   'use strict';
 
-  let currentPopup = null;
-  let cachedSettings = null;
-  let lastMouseX = 0;
-  let lastMouseY = 0;
-  let currentAudio = null;
+  var currentPopup = null;
+  var currentAudio = null;
+  var lastMouseX = 0;
+  var lastMouseY = 0;
 
-  // YouTube subtitle translation
-  const SUBTITLE_MESSAGE_CHANNEL = 'duck-subtitle-inject';
-  let subtitleConfig = {
-    enabled: true,
-    sourceLang: 'auto',
-    targetLang: 'zh-CN'
-  };
-
-  // Handle messages from inject.js
-  function setupMessageBridge() {
-    window.addEventListener('message', (event) => {
-      const data = event.data;
-      if (!data || data.eventType !== SUBTITLE_MESSAGE_CHANNEL) return;
-      if (data.to !== 'content-script') return;
-
-      const { type, id, isAsync } = data;
-
-      if (type === 'getConfig') {
-        const response = { ...subtitleConfig };
-        if (isAsync) {
-          window.postMessage({
-            eventType: SUBTITLE_MESSAGE_CHANNEL,
-            to: 'inject',
-            from: 'content-script',
-            type: 'config',
-            data: response,
-            id: id
-          }, '*');
-        }
-      } else if (type === 'requestSubtitle') {
-        handleSubtitleTranslation(data.data, id, isAsync);
-      } else if (type === 'contentReady') {
-        window.postMessage({
-          eventType: SUBTITLE_MESSAGE_CHANNEL,
-          to: 'inject',
-          from: 'content-script',
-          type: 'contentReadyAck',
-          data: true,
-          id: id
-        }, '*');
-      }
-    });
-  }
-
-  async function handleSubtitleTranslation(data, id, isAsync) {
-    const { url, responseText } = data;
-
-    try {
-      let subtitleContent = responseText;
-      if (!subtitleContent && url) {
-        const response = await fetch(url);
-        subtitleContent = await response.text();
-      }
-
-      if (!subtitleContent) {
-        sendSubtitleResponse({ success: false, error: 'No subtitle content' }, id, isAsync);
-        return;
-      }
-
-      const result = await translateText(subtitleContent);
-      sendSubtitleResponse({ success: true, translatedContent: result }, id, isAsync);
-    } catch (error) {
-      sendSubtitleResponse({ success: false, error: error.message }, id, isAsync);
-    }
-  }
-
-  function sendSubtitleResponse(data, id, isAsync) {
-    if (isAsync) {
-      window.postMessage({
-        eventType: SUBTITLE_MESSAGE_CHANNEL,
-        to: 'inject',
-        from: 'content-script',
-        type: 'subtitleResult',
-        data: data,
-        id: id
-      }, '*');
-    }
-  }
-
-  async function translateText(text) {
-    return new Promise((resolve, reject) => {
-      chrome.runtime.sendMessage({
-        action: 'translate',
-        text: text,
-        sourceLang: subtitleConfig.sourceLang,
-        targetLang: subtitleConfig.targetLang
-      }, (response) => {
-        if (response && response.success) {
-          resolve(response.result);
-        } else {
-          reject(new Error(response?.error || 'Translation failed'));
-        }
-      });
-    });
-  }
-
-  function injectScript(scriptContent) {
-    const script = document.createElement('script');
-    script.textContent = scriptContent;
-    (document.head || document.documentElement).appendChild(script);
-    script.remove();
-  }
-
-  function getInjectScript() {
-    return '(' + function() {
-      var CHANNEL = 'duck-subtitle-inject';
-      var SUBTITLE_REGEX = /youtube\.com.*timedtext/;
-
-      var originalXHROpen = XMLHttpRequest.prototype.open;
-      var originalXHRSend = XMLHttpRequest.prototype.send;
-
-      function sendMessage(data) {
-        return new Promise(function(resolve) {
-          var id = Date.now() + Math.random();
-          window.postMessage({
-            eventType: CHANNEL,
-            to: 'content-script',
-            from: 'inject',
-            type: data.type,
-            data: data.data,
-            id: id,
-            isAsync: true
-          }, '*');
-
-          var handler = function(event) {
-            if (event.data.eventType === CHANNEL &&
-                event.data.to === 'inject' &&
-                event.data.id === id) {
-              window.removeEventListener('message', handler);
-              resolve(event.data.data);
-            }
-          };
-          window.addEventListener('message', handler);
-          setTimeout(function() {
-            window.removeEventListener('message', handler);
-            resolve(null);
-          }, 5000);
-        });
-      }
-
-      function waitForContentReady() {
-        return new Promise(function(resolve) {
-          window.postMessage({
-            eventType: CHANNEL,
-            to: 'content-script',
-            from: 'inject',
-            type: 'contentReady',
-            data: true
-          }, '*');
-
-          var handler = function(event) {
-            if (event.data.eventType === CHANNEL &&
-                event.data.to === 'inject' &&
-                event.data.type === 'contentReadyAck') {
-              window.removeEventListener('message', handler);
-              resolve(true);
-            }
-          };
-          window.addEventListener('message', handler);
-          setTimeout(function() { resolve(false); }, 5000);
-        });
-      }
-
-      async function handleSubtitleRequest(url, responseText) {
-        try {
-          var result = await sendMessage({
-            type: 'requestSubtitle',
-            data: { url: url, responseText: responseText }
-          });
-          return result;
-        } catch (e) {
-          console.error('Duck Translate: Subtitle error', e);
-          return null;
-        }
-      }
-
-      XMLHttpRequest.prototype.open = function(method, url) {
-        this._url = typeof url === 'string' ? url : url && url.href;
-        this._method = method;
-        return originalXHROpen.apply(this, arguments);
-      };
-
-      XMLHttpRequest.prototype.send = function(data) {
-        var url = this._url;
-
-        if (url && SUBTITLE_REGEX.test(url)) {
-          var self = this;
-          this.addEventListener('readystatechange', async function() {
-            if (self.readyState === 4 && self.status === 200) {
-              var responseText = self.responseText;
-              if (responseText && responseText.indexOf('-->') > -1) {
-                var translated = await handleSubtitleRequest(url, responseText);
-                if (translated && translated.success && translated.translatedContent) {
-                  Object.defineProperty(self, 'responseText', {
-                    value: translated.translatedContent,
-                    writable: false
-                  });
-                  Object.defineProperty(self, 'response', {
-                    value: translated.translatedContent,
-                    writable: false
-                  });
-                }
-              }
-            }
-          });
-        }
-
-        return originalXHRSend.apply(this, arguments);
-      };
-
-      var originalFetch = globalThis.fetch;
-      globalThis.fetch = async function(input, init) {
-        var url = typeof input === 'string' ? input : (input && input.url);
-
-        if (url && SUBTITLE_REGEX.test(url)) {
-          var response = await originalFetch(input, init);
-          if (response.ok) {
-            var text = await response.text();
-            if (text && text.indexOf('-->') > -1) {
-              var translated = await handleSubtitleRequest(url, text);
-              if (translated && translated.success && translated.translatedContent) {
-                return new Response(translated.translatedContent, {
-                  status: response.status,
-                  statusText: response.statusText,
-                  headers: response.headers
-                });
-              }
-            }
-          }
-          return response;
-        }
-
-        return originalFetch.apply(this, arguments);
-      };
-
-      waitForContentReady().then(function(ready) {
-        if (ready) {
-          console.log('Duck Translate: YouTube subtitle initialized');
-        }
-      });
-    } + ')();';
-  }
-
-  function initYouTubeSubtitle() {
-    if (!window.location.hostname.includes('youtube.com')) return;
-    if (!window.location.pathname.includes('/watch')) return;
-
-    var checkReady = setInterval(function() {
-      var player = document.querySelector('#movie_player');
-      if (player && typeof player.getPlayerResponse === 'function') {
-        clearInterval(checkReady);
-        loadSettingsAndInit();
-      }
-    }, 1000);
-
-    setTimeout(function() { clearInterval(checkReady); }, 30000);
-  }
-
-  async function loadSettingsAndInit() {
-    var response = await new Promise(function(resolve) {
-      chrome.runtime.sendMessage({ action: 'getSettings' }, resolve);
-    });
-
-    if (response && response.settings) {
-      subtitleConfig.sourceLang = response.settings.sourceLang || 'auto';
-      subtitleConfig.targetLang = response.settings.targetLang || 'zh-CN';
-    }
-
-    setupMessageBridge();
-    injectScript(getInjectScript());
-
-    setTimeout(function() {
-      window.postMessage({
-        eventType: SUBTITLE_MESSAGE_CHANNEL,
-        to: 'inject',
-        from: 'content-script',
-        type: 'contentReady',
-        data: true
-      }, '*');
-    }, 500);
-  }
-
-  document.addEventListener('contextmenu', function(e) {
+  // Track mouse position
+  document.addEventListener('mousemove', function(e) {
     lastMouseX = e.clientX;
     lastMouseY = e.clientY;
   });
 
-  function loadSettings() {
-    return new Promise(function(resolve) {
-      chrome.runtime.sendMessage({ action: 'getSettings' }, function(response) {
-        if (response && response.settings) {
-          cachedSettings = response.settings;
-        }
-        resolve(cachedSettings);
-      });
+  // Inject styles
+  var style = document.createElement('style');
+  style.textContent = `
+    /* Duck Translate - Content Script Styles */
+    #duck-selection-toolbar {
+      position: absolute;
+      z-index: 2147483646; /* Lower than popup */
+      background: linear-gradient(135deg, #ffb347 0%, #ffcc5c 100%);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(139, 90, 43, 0.2);
+      padding: 6px 8px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(5px);
+      transition: opacity 0.2s, transform 0.2s;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    #duck-selection-toolbar.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .duck-toolbar-buttons {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .duck-toolbar-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      padding: 0;
+    }
+    .duck-toolbar-btn:hover {
+      background: rgba(255, 255, 255, 0.5);
+      transform: scale(1.1);
+    }
+    .duck-toolbar-btn:active {
+      transform: scale(0.95);
+    }
+    #duck-translate-popup {
+      position: fixed;
+      z-index: 2147483647; /* Higher than toolbar */
+      background: #fffdf8;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(139, 90, 43, 0.18), 0 2px 8px rgba(0,0,0,0.08);
+      max-width: 380px;
+      min-width: 280px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #5a4a3a;
+      border: 2px solid #f5efe0;
+      overflow: hidden;
+      transition: all 0.2s ease;
+      animation: duckSlideIn 0.2s ease-out;
+    }
+    @keyframes duckSlideIn {
+      from { opacity: 0; transform: translateY(10px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .duck-popup-header {
+      background: linear-gradient(135deg, #ffb347 0%, #ffcc5c 100%);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #f5efe0;
+    }
+    .duck-popup-title { font-weight: 700; font-size: 14px; color: #6b5344; text-shadow: 0 1px 2px rgba(255,255,255,0.5); }
+    .duck-popup-close {
+      background: none; border: none; font-size: 20px; line-height: 1; cursor: pointer; color: #6b5344;
+      padding: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; transition: all 0.2s;
+    }
+    .duck-popup-close:hover { background: rgba(107, 83, 68, 0.1); transform: scale(1.1); }
+    .duck-popup-content { padding: 16px; max-height: 300px; overflow-y: auto; }
+    .duck-popup-loading { text-align: center; color: #8b7355; padding: 20px 0; font-style: italic; }
+    .duck-popup-error { background: #fff3e0; color: #e65100; padding: 12px; border-radius: 8px; border: 1px solid #ffe0b2; margin-bottom: 12px; font-size: 13px; }
+    .duck-popup-tts-error { background: #fff3e0; color: #e65100; padding: 8px 12px; border-radius: 6px; border: 1px solid #ffe0b2; margin: 8px 0; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+    .duck-popup-source { font-size: 13px; color: #8b7355; margin-bottom: 8px; line-height: 1.4; padding-bottom: 8px; border-bottom: 1px dashed #f0e6d3; }
+    .duck-popup-text { font-size: 15px; font-weight: 500; color: #5a4a3a; margin-bottom: 12px; line-height: 1.5; min-height: 40px; }
+    .duck-popup-phonetic { font-size: 12px; color: #8b7355; margin: 8px 0; padding: 6px 10px; background: #fff8e1; border-radius: 6px; border: 1px solid #ffe082; font-style: italic; }
+    .duck-popup-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #f0e6d3; }
+    .duck-popup-btn { flex: 1; padding: 8px 12px; border: 2px solid #f0e6d3; border-radius: 8px; background: #fffdf8; color: #5a4a3a; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; }
+    .duck-popup-btn:hover { border-color: #ffb347; background: #fff8e1; transform: translateY(-1px); box-shadow: 0 2px 4px rgba(255, 179, 71, 0.2); }
+    .duck-popup-btn.primary { background: linear-gradient(135deg, #ffb347 0%, #ffcc5c 100%); border-color: #ffb347; color: #6b5344; font-weight: 700; }
+    .duck-popup-btn.primary:hover { background: linear-gradient(135deg, #ff9500 0%, #ffb347 100%); border-color: #ff9500; box-shadow: 0 4px 8px rgba(255, 149, 0, 0.3); }
+    .duck-popup-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+    .duck-popup-content::-webkit-scrollbar { width: 6px; }
+    .duck-popup-content::-webkit-scrollbar-track { background: transparent; }
+    .duck-popup-content::-webkit-scrollbar-thumb { background: #f0e6d3; border-radius: 3px; }
+    .duck-popup-content::-webkit-scrollbar-thumb:hover { background: #ffe0a0; }
+  `;
+  document.head.appendChild(style);
+
+  // Selection Toolbar implementation
+  var selectionToolbar = null;
+  var selectionToolbarVisible = false;
+
+  function createSelectionToolbar() {
+    var existingToolbar = document.getElementById('duck-selection-toolbar');
+    if (existingToolbar) {
+      existingToolbar.remove();
+    }
+
+    selectionToolbar = document.createElement('div');
+    selectionToolbar.id = 'duck-selection-toolbar';
+    selectionToolbar.innerHTML = 
+      '<div class="duck-toolbar-buttons">' +
+        '<button class="duck-toolbar-btn" id="duck-toolbar-translate" title="翻译">🔄</button>' +
+        '<button class="duck-toolbar-btn" id="duck-toolbar-speak" title="朗读">🔊</button>' +
+        '<button class="duck-toolbar-btn" id="duck-toolbar-close" title="关闭">❌</button>' +
+      '</div>';
+    
+    document.body.appendChild(selectionToolbar);
+
+    // Translate button
+    selectionToolbar.querySelector('#duck-toolbar-translate').addEventListener('click', function(e) {
+      e.stopPropagation();
+      var selectedText = window.getSelection().toString().trim();
+      if (selectedText) {
+        hideSelectionToolbar(function() {
+          performTranslation(selectedText);
+        });
+      }
+    });
+
+    // Speak button - use Web Speech API for local TTS
+    selectionToolbar.querySelector('#duck-toolbar-speak').addEventListener('click', function(e) {
+      e.stopPropagation();
+      var selectedText = window.getSelection().toString().trim();
+      if (selectedText) {
+        hideSelectionToolbar(function() {
+          if ('speechSynthesis' in window) {
+            var utterance = new SpeechSynthesisUtterance(selectedText);
+            utterance.lang = 'en-US';
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            speechSynthesis.speak(utterance);
+          }
+        });
+      }
+    });
+
+    // Close button
+    selectionToolbar.querySelector('#duck-toolbar-close').addEventListener('click', function(e) {
+      e.stopPropagation();
+      hideSelectionToolbar();
+    });
+
+    // Prevent clicks from clearing selection
+    selectionToolbar.addEventListener('mousedown', function(e) {
+      e.preventDefault();
     });
   }
 
+  function getSelectionDirection(startX, startY, endX, endY) {
+    var isRightward = startX <= endX;
+    var isDownward = startY <= endY + 8;
+    
+    if (isRightward && isDownward) return 'bottom-right';
+    if (isRightward && !isDownward) return 'top-right';
+    if (!isRightward && isDownward) return 'bottom-left';
+    return 'top-left';
+  }
+
+  function showSelectionToolbar(anchorX, anchorY, startX, startY) {
+    if (!selectionToolbar) {
+      createSelectionToolbar();
+    }
+
+    var selection = window.getSelection();
+    var text = selection ? selection.toString().trim() : '';
+    if (!text) {
+      hideSelectionToolbar();
+      return;
+    }
+
+    var toolbarWidth = selectionToolbar.offsetWidth || 120;
+    var toolbarHeight = selectionToolbar.offsetHeight || 40;
+    var direction = getSelectionDirection(startX, startY, anchorX, anchorY);
+    var scrollX = window.scrollX || window.pageXOffset;
+    var scrollY = window.scrollY || window.pageYOffset;
+    var viewportWidth = window.innerWidth;
+    var viewportHeight = window.innerHeight;
+
+    var posX, posY;
+    var cursorClearance = 15;
+
+    switch (direction) {
+      case 'bottom-right':
+        posX = anchorX + scrollX;
+        posY = anchorY + scrollY + cursorClearance;
+        break;
+      case 'bottom-left':
+        posX = anchorX + scrollX - toolbarWidth;
+        posY = anchorY + scrollY + cursorClearance;
+        break;
+      case 'top-right':
+        posX = anchorX + scrollX;
+        posY = anchorY + scrollY - toolbarHeight - cursorClearance;
+        break;
+      case 'top-left':
+        posX = anchorX + scrollX - toolbarWidth;
+        posY = anchorY + scrollY - toolbarHeight - cursorClearance;
+        break;
+    }
+
+    posX = Math.max(10, Math.min(viewportWidth - toolbarWidth - 10, posX));
+    posY = Math.max(10, Math.min(viewportHeight - toolbarHeight - 10 + scrollY, posY));
+
+    selectionToolbar.style.left = posX + 'px';
+    selectionToolbar.style.top = posY + 'px';
+    selectionToolbar.classList.add('visible');
+
+    selectionToolbarVisible = true;
+  }
+
+  function hideSelectionToolbar(callback) {
+    if (selectionToolbar) {
+      selectionToolbar.classList.remove('visible');
+      // Wait for animation to complete before callback
+      setTimeout(function() {
+        if (callback) {
+          callback();
+        }
+      }, 250); // Match CSS transition duration
+    } else if (callback) {
+      callback();
+    }
+    selectionToolbarVisible = false;
+  }
+
   function createPopup(x, y) {
-    removePopup();
+    var existingPopup = document.getElementById('duck-translate-popup');
+    if (existingPopup) {
+      existingPopup.remove();
+    }
 
     var popup = document.createElement('div');
     popup.id = 'duck-translate-popup';
-    popup.innerHTML = '<div class="duck-popup-header" style="cursor:move;">' +
-      '<span class="duck-popup-title">Duck Translate</span>' +
-      '<button class="duck-popup-close">&times;</button>' +
+    popup.innerHTML = 
+      '<div class="duck-popup-header">' +
+        '<span class="duck-popup-title">🦆 Duck Translate</span>' +
+        '<button class="duck-popup-close" id="duck-popup-close">×</button>' +
       '</div>' +
-      '<div class="duck-popup-content">' +
-      '<div class="duck-popup-loading">Translating...</div>' +
-      '</div>';
-
-    document.body.appendChild(popup);
+      '<div class="duck-popup-content">Loading...</div>';
+    
     popup.style.left = x + 'px';
     popup.style.top = y + 'px';
-    adjustPopupPosition(popup);
+    document.body.appendChild(popup);
 
-    // Add drag functionality
-    var header = popup.querySelector('.duck-popup-header');
-    var isDragging = false;
-    var dragOffsetX = 0;
-    var dragOffsetY = 0;
-
-    header.addEventListener('mousedown', function(e) {
-      if (e.target.classList.contains('duck-popup-close')) return;
-      isDragging = true;
-      dragOffsetX = e.clientX - popup.offsetLeft;
-      dragOffsetY = e.clientY - popup.offsetTop;
-      popup.style.transition = 'none';
+    document.getElementById('duck-popup-close').addEventListener('click', function() {
+      closePopup();
     });
-
-    document.addEventListener('mousemove', function(e) {
-      if (!isDragging) return;
-      var newX = e.clientX - dragOffsetX;
-      var newY = e.clientY - dragOffsetY;
-      popup.style.left = newX + 'px';
-      popup.style.top = newY + 'px';
-    });
-
-    document.addEventListener('mouseup', function() {
-      isDragging = false;
-    });
-
-    popup.querySelector('.duck-popup-close').addEventListener('click', function(e) {
-      e.stopPropagation();
-      removePopup();
-    });
-
-    setTimeout(function() {
-      document.addEventListener('click', handleOutsideClick);
-    }, 100);
 
     return popup;
   }
 
-  function removePopup() {
-    if (currentPopup) {
-      currentPopup.remove();
-      currentPopup = null;
+  function closePopup() {
+    var popup = document.getElementById('duck-translate-popup');
+    if (popup) {
+      popup.remove();
     }
-    document.removeEventListener('click', handleOutsideClick);
-  }
-
-  function handleOutsideClick(e) {
-    if (currentPopup && !currentPopup.contains(e.target)) {
-      removePopup();
+    currentPopup = null;
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio = null;
     }
   }
 
-  function adjustPopupPosition(popup) {
-    var rect = popup.getBoundingClientRect();
-    var viewportWidth = window.innerWidth;
-    var viewportHeight = window.innerHeight;
-
-    var left = parseInt(popup.style.left) || 0;
-    var top = parseInt(popup.style.top) || 0;
-
-    if (left + rect.width > viewportWidth - 10) {
-      left = left - rect.width - 20;
-    }
-
-    if (top + rect.height > viewportHeight - 10) {
-      top = top - rect.height - 20;
-    }
-
-    if (left < 10) left = 10;
-    if (top < 10) top = 10;
-
-    popup.style.left = left + 'px';
-    popup.style.top = top + 'px';
-  }
-
-  function showTranslation(text, result, error, targetLang, sourceAudioDataUrl, translationAudioDataUrl, ttsError, settings) {
-    if (!currentPopup) return;
-    if (error === undefined) error = null;
-    if (ttsError === undefined) ttsError = null;
-    var showPinyin = settings?.showPinyin !== false;
-    var enableTTS = settings?.enableTTS !== false;
-
-    var content = currentPopup.querySelector('.duck-popup-content');
-
-    if (error) {
-      content.innerHTML = '<div class="duck-popup-error">' + error + '</div>' +
-        '<div class="duck-popup-actions">' +
-        '<button class="duck-popup-btn" id="open-settings-btn">Open Settings</button>' +
-        '</div>';
-      content.querySelector('#open-settings-btn').addEventListener('click', function() {
-        try {
-          chrome.runtime.openOptionsPage();
-        } catch (e) {
-          window.open(chrome.runtime.getURL('options.html'), '_blank');
-        }
-      });
-      return;
-    }
-
-    var sourceText = text.length > 100 ? text.substring(0, 100) + '...' : text;
-
-    // Parse AI response to extract translation, pinyin/phonetic
-    var parsed = parseAIResponse(result);
-    var translationText = parsed.translation || result;
-    var phoneticText = parsed.phonetic || '';
-
-    var phoneticHtml = '';
-    if (showPinyin && phoneticText) {
-      phoneticHtml = '<div class="duck-popup-phonetic">' + escapeHtml(phoneticText) + '</div>';
-    }
-
-    var ttsHtml = '';
-    if (enableTTS) {
-      if (ttsError) {
-        ttsHtml = '<div class="duck-popup-tts-error">🔊 TTS Error: ' + escapeHtml(ttsError) + '</div>';
-      }
-      // TTS is now generated on demand, so it's always available when enableTTS is true
-    }
-
-    var actionsHtml = '<button class="duck-popup-btn" data-action="copy">Copy</button>' +
-      '<button class="duck-popup-btn primary" data-action="swap">Swap & Translate</button>';
-    if (enableTTS) {
-      actionsHtml = '<button class="duck-popup-btn" data-action="tts-source">🔊 原文</button>' +
-                   '<button class="duck-popup-btn" data-action="tts-translation">🔊 译文</button>' +
-                   actionsHtml;
-    }
-
-    content.innerHTML = '<div class="duck-popup-source">' + escapeHtml(sourceText) + '</div>' +
-      '<div class="duck-popup-text">' + escapeHtml(translationText) + '</div>' +
-      phoneticHtml +
-      ttsHtml +
-      '<div class="duck-popup-actions">' + actionsHtml + '</div>';
-
-    // TTS button handlers - only if enableTTS is enabled
-    if (enableTTS) {
-      let ttsSourceTimeout = null;
-      let ttsTranslationTimeout = null;
-      
-      // Source text TTS button (original text)
-      var ttsSourceBtn = content.querySelector('[data-action="tts-source"]');
-      if (ttsSourceBtn) {
-        ttsSourceBtn.addEventListener('click', function() {
-          var btn = this;
-          
-          // Debounce to prevent multiple rapid clicks
-          clearTimeout(ttsSourceTimeout);
-          ttsSourceTimeout = setTimeout(function() {
-            // Use pre-generated audio if available
-            if (sourceAudioDataUrl) {
-              playAudio(sourceAudioDataUrl, btn, 'tts-source');
-            } else {
-              // Fall back to generating audio on demand via background
-              btn.textContent = '🔊 播放中...';
-              btn.disabled = true;
-              
-              console.log('Duck Translate: Generating TTS for source text:', text.substring(0, 30) + (text.length > 30 ? '...' : ''));
-              
-              chrome.runtime.sendMessage({
-                action: 'generateTTS',
-                text: text,  // Use original source text (full text)
-                targetLang: targetLang || 'en' // Default to English for source
-              }, function(response) {
-                btn.textContent = '🔊 原文';
-                btn.disabled = false;
-                
-                if (response && response.success && response.audioDataUrl) {
-                  try {
-                    playAudio(response.audioDataUrl, btn, 'tts-source');
-                  } catch (error) {
-                    console.error('Duck Translate: TTS playback error:', error);
-                  }
-                }
-              });
-            }
-          }, 200); // 200ms debounce
+  async function loadSettings() {
+    return new Promise(function(resolve) {
+      chrome.runtime.sendMessage({ action: 'getSettings' }, function(response) {
+        resolve(response.settings || {
+          apiKey: '',
+          sourceLang: 'auto',
+          targetLang: 'zh-CN',
+          enableTTS: true,
+          showPinyin: true
         });
-      }
-
-      // Translation TTS button
-      var ttsTranslationBtn = content.querySelector('[data-action="tts-translation"]');
-      if (ttsTranslationBtn) {
-        ttsTranslationBtn.addEventListener('click', function() {
-          var btn = this;
-          
-          // Debounce to prevent multiple rapid clicks
-          clearTimeout(ttsTranslationTimeout);
-          ttsTranslationTimeout = setTimeout(function() {
-            // Use pre-generated audio if available
-            if (translationAudioDataUrl) {
-              playAudio(translationAudioDataUrl, btn, 'tts-translation');
-            } else {
-              // Fall back to generating audio on demand via background
-              btn.textContent = '🔊 播放中...';
-              btn.disabled = true;
-              
-              console.log('Duck Translate: Generating TTS for translation text:', translationText.substring(0, 30) + (translationText.length > 30 ? '...' : ''));
-              
-              chrome.runtime.sendMessage({
-                action: 'generateTTS',
-                text: translationText,  // Use full translation text
-                targetLang: targetLang || 'zh-CN'
-              }, function(response) {
-                btn.textContent = '🔊 译文';
-                btn.disabled = false;
-                
-                if (response && response.success && response.audioDataUrl) {
-                  try {
-                    playAudio(response.audioDataUrl, btn, 'tts-translation');
-                  } catch (error) {
-                    console.error('Duck Translate: TTS playback error:', error);
-                  }
-                }
-              });
-            }
-          }, 200); // 200ms debounce
-        });
-      }
-    }
-
-    // Helper function to play audio
-    function playAudio(audioDataUrl, btn, actionType) {
-      btn.textContent = '🔊 播放中...';
-      btn.disabled = true;
-
-      // Stop previous audio
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio = null;
-      }
-
-      try {
-        currentAudio = new Audio(audioDataUrl);
-        currentAudio.play().then(function() {
-          console.log('Duck Translate: TTS playback started');
-        }).catch(function(error) {
-          console.error('Duck Translate: TTS playback error:', error);
-          btn.textContent = actionType === 'tts-source' ? '🔊 原文' : '🔊 译文';
-          btn.disabled = false;
-        });
-        
-        currentAudio.onended = function() {
-          btn.textContent = actionType === 'tts-source' ? '🔊 原文' : '🔊 译文';
-          btn.disabled = false;
-        };
-        
-        currentAudio.onerror = function(error) {
-          console.error('Duck Translate: Audio error:', error);
-          btn.textContent = actionType === 'tts-source' ? '🔊 原文' : '🔊 译文';
-          btn.disabled = false;
-        };
-      } catch (error) {
-        console.error('Duck Translate: TTS error:', error);
-        btn.textContent = actionType === 'tts-source' ? '🔊 原文' : '🔊 译文';
-        btn.disabled = false;
-      }
-    }
-
-    content.querySelector('[data-action="copy"]').addEventListener('click', function() {
-      navigator.clipboard.writeText(translationText).then(function() {
-        var btn = content.querySelector('[data-action="copy"]');
-        btn.textContent = 'Copied!';
-        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
       });
     });
-
-    content.querySelector('[data-action="swap"]').addEventListener('click', function() {
-      performTranslation(translationText, true);
-    });
   }
 
-  // Parse AI response to extract translation and phonetic
   function parseAIResponse(response) {
-    var result = {
-      translation: '',
-      phonetic: ''
-    };
-
+    var result = { translation: '', phonetic: '' };
     if (!response) return result;
 
-    // Try to parse structured format
     var transMatch = response.match(/【翻译】\s*([\s\S]*?)(?=【拼音】|【音标】|$)/i);
     var pinyinMatch = response.match(/【拼音】\s*([\s\S]*?)(?=【发音】|【翻译】|$)/i);
     var ipaMatch = response.match(/【音标】\s*([\s\S]*?)(?=【发音】|【翻译】|$)/i);
@@ -618,7 +324,6 @@
       result.phonetic = '音标: ' + ipaMatch[1].trim();
     }
 
-    // If no structured format found, return as-is
     if (!result.translation) {
       result.translation = response;
     }
@@ -646,7 +351,6 @@
         x = rect.right + 10;
         y = rect.top;
       } else {
-        // For swap operation or when no selection, use current mouse position or last known position
         x = lastMouseX + 10;
         y = lastMouseY;
       }
@@ -661,23 +365,148 @@
       var settings = await loadSettings();
 
       var sourceLang = isSwap ? (settings.targetLang === 'auto' ? 'auto' : settings.targetLang) : settings.sourceLang;
-      var targetLang = isSwap ? (settings.sourceLang === 'auto' ? 'zh-CN' : settings.sourceLang) : settings.targetLang;
+      var targetLang = isSwap ? settings.sourceLang : settings.targetLang;
 
-      var response = await chrome.runtime.sendMessage({
+      chrome.runtime.sendMessage({
         action: 'translate',
         text: text,
         sourceLang: sourceLang,
         targetLang: targetLang
+      }, function(response) {
+        if (response && response.success) {
+          showTranslation(text, response.result, null, targetLang, null, null, null, settings);
+        } else {
+          showTranslation(text, null, response?.error || 'Translation failed', targetLang, null, null, null, settings);
+        }
       });
-
-      if (response && response.success) {
-        showTranslation(text, response.result, null, targetLang, null, null, null, settings);
-      } else {
-        showTranslation(text, null, response?.error || 'Translation failed', targetLang, null, null, null, settings);
-      }
     } catch (error) {
       showTranslation(text, null, error.message || 'Translation failed');
     }
+  }
+
+  function showTranslation(text, result, error, targetLang, sourceAudioDataUrl, translationAudioDataUrl, ttsError, settings) {
+    if (!currentPopup) return;
+
+    var content = currentPopup.querySelector('.duck-popup-content');
+    if (error) {
+      content.innerHTML = '<div class="duck-popup-error">' + escapeHtml(error) + '</div>';
+      return;
+    }
+
+    var parsed = parseAIResponse(result);
+    var translationText = parsed.translation || result;
+    var phoneticText = parsed.phonetic || '';
+
+    var phoneticHtml = '';
+    if (settings.showPinyin && phoneticText) {
+      phoneticHtml = '<div class="duck-popup-phonetic">' + escapeHtml(phoneticText) + '</div>';
+    }
+
+    var ttsHtml = '';
+    if (settings.enableTTS) {
+      if (ttsError) {
+        ttsHtml = '<div class="duck-popup-tts-error">🔊 TTS Error: ' + escapeHtml(ttsError) + '</div>';
+      }
+    }
+
+    var actionsHtml = '<button class="duck-popup-btn" data-action="copy">Copy</button>' +
+      '<button class="duck-popup-btn primary" data-action="swap">Swap & Translate</button>';
+    if (settings.enableTTS) {
+      actionsHtml = '<button class="duck-popup-btn" data-action="tts-source">🔊 原文</button>' +
+                   '<button class="duck-popup-btn" data-action="tts-translation">🔊 译文</button>' +
+                   actionsHtml;
+    }
+
+    content.innerHTML = '<div class="duck-popup-source">' + escapeHtml(text) + '</div>' +
+      '<div class="duck-popup-text">' + escapeHtml(translationText) + '</div>' +
+      phoneticHtml +
+      ttsHtml +
+      '<div class="duck-popup-actions">' + actionsHtml + '</div>';
+
+    // TTS button handlers
+    if (settings.enableTTS) {
+      var ttsSourceBtn = content.querySelector('[data-action="tts-source"]');
+      if (ttsSourceBtn) {
+        ttsSourceBtn.addEventListener('click', function() {
+          var btn = this;
+          btn.textContent = '🔊 播放中...';
+          btn.disabled = true;
+          
+          chrome.runtime.sendMessage({
+            action: 'generateTTS',
+            text: text,
+            targetLang: targetLang || 'en'
+          }, function(response) {
+            btn.textContent = '🔊 原文';
+            btn.disabled = false;
+            
+            if (response && response.success && response.audioDataUrl) {
+              try {
+                if (currentAudio) {
+                  currentAudio.pause();
+                }
+                currentAudio = new Audio(response.audioDataUrl);
+                currentAudio.play().catch(function(error) {
+                  console.error('Duck Translate: Audio error:', error);
+                });
+                currentAudio.onended = function() {
+                  btn.textContent = '🔊 原文';
+                };
+              } catch (error) {
+                console.error('Duck Translate: TTS playback error:', error);
+              }
+            }
+          });
+        });
+      }
+
+      var ttsTranslationBtn = content.querySelector('[data-action="tts-translation"]');
+      if (ttsTranslationBtn) {
+        ttsTranslationBtn.addEventListener('click', function() {
+          var btn = this;
+          btn.textContent = '🔊 播放中...';
+          btn.disabled = true;
+          
+          chrome.runtime.sendMessage({
+            action: 'generateTTS',
+            text: translationText,
+            targetLang: targetLang || 'zh-CN'
+          }, function(response) {
+            btn.textContent = '🔊 译文';
+            btn.disabled = false;
+            
+            if (response && response.success && response.audioDataUrl) {
+              try {
+                if (currentAudio) {
+                  currentAudio.pause();
+                }
+                currentAudio = new Audio(response.audioDataUrl);
+                currentAudio.play().catch(function(error) {
+                  console.error('Duck Translate: Audio error:', error);
+                });
+                currentAudio.onended = function() {
+                  btn.textContent = '🔊 译文';
+                };
+              } catch (error) {
+                console.error('Duck Translate: TTS playback error:', error);
+              }
+            }
+          });
+        });
+      }
+    }
+
+    content.querySelector('[data-action="copy"]').addEventListener('click', function() {
+      navigator.clipboard.writeText(translationText).then(function() {
+        var btn = content.querySelector('[data-action="copy"]');
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+      });
+    });
+
+    content.querySelector('[data-action="swap"]').addEventListener('click', function() {
+      performTranslation(translationText, true);
+    });
   }
 
   chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
@@ -690,27 +519,42 @@
     return false;
   });
 
+  // Selection toolbar state
   var selectionTimeout = null;
   var lastSelectedText = '';
   var lastSelectionTime = 0;
   var isMouseDown = false;
   var mouseDownTime = 0;
-  
-  // Mousedown handler to track selection start
+  var selectionStartX = 0;
+  var selectionStartY = 0;
+
+  // Mousedown handler
   document.addEventListener('mousedown', function(e) {
-    if (e.button !== 0) return; // Only left mouse button
+    if (e.button !== 0) return;
+    if (e.target.closest('#duck-selection-toolbar')) {
+      return;
+    }
+    if (e.target.closest('#duck-translate-popup')) {
+      return;
+    }
     isMouseDown = true;
     mouseDownTime = Date.now();
+    selectionStartX = e.clientX;
+    selectionStartY = e.clientY;
+    hideSelectionToolbar();
+    if (currentPopup && !e.target.closest('#duck-translate-popup')) {
+      closePopup();
+    }
   });
-  
-  // Mouseup handler for selection
+
+  // Mouseup handler
   document.addEventListener('mouseup', function(e) {
-    if (e.button !== 0) return; // Only left mouse button
+    if (e.button !== 0) return;
+    if (e.target.closest('#duck-selection-toolbar')) return;
     if (e.target.closest('#duck-translate-popup')) return;
     
-    // Minimum selection time to avoid accidental clicks
     var selectionTime = Date.now() - mouseDownTime;
-    if (selectionTime < 100) return; // Ignore very quick clicks
+    if (selectionTime < 100) return;
     
     clearTimeout(selectionTimeout);
     selectionTimeout = setTimeout(function() {
@@ -718,71 +562,34 @@
       var text = selection.toString().trim();
       var now = Date.now();
 
-      // Only translate if:
-      // 1. Text is not empty
-      // 2. Text length is reasonable (1-5000 chars)
-      // 3. Text is different from last translation
-      // 4. Enough time has passed since last translation
-      // 5. Selection is not just a single word (optional)
-      if (text && 
-          text.length > 0 && 
-          text.length < 5000 && 
-          text !== lastSelectedText && 
-          (now - lastSelectionTime > 800)) {
-        
+      if (text && text.length > 0 && text.length < 5000 && text !== lastSelectedText && (now - lastSelectionTime > 800)) {
         lastSelectedText = text;
         lastSelectionTime = now;
         
-        // Small delay to ensure selection is complete
         setTimeout(function() {
-          performTranslation(text);
+          showSelectionToolbar(e.clientX, e.clientY, selectionStartX, selectionStartY);
         }, 150);
+      } else if (!text) {
+        hideSelectionToolbar();
       }
-    }, 600); // Increased timeout to 600ms for better debouncing
+    }, 600);
   });
 
+  // Hide toolbar on scroll
+  window.addEventListener('scroll', function() {
+    hideSelectionToolbar();
+  }, { passive: true });
+
+  // Double-click to translate word
   document.addEventListener('dblclick', function(e) {
     var selection = window.getSelection();
     var text = selection.toString().trim();
-
-    if (text && text.length > 0 && text.length < 5000) {
-      performTranslation(text);
+    if (text && text.length < 100) {
+      hideSelectionToolbar(function() {
+        performTranslation(text);
+      });
     }
   });
 
-  // Inject scripts for YouTube support
-  function injectScripts() {
-    if (window.location.href.includes('youtube.com/watch')) {
-      // Inject YouTube player data script
-      const injectScript = document.createElement('script');
-      injectScript.src = chrome.runtime.getURL('youtube-inject.js');
-      injectScript.onload = function() {
-        this.remove();
-      };
-      (document.head || document.documentElement).appendChild(injectScript);
-
-      // Inject YouTube subtitles script
-      const subtitlesScript = document.createElement('script');
-      subtitlesScript.src = chrome.runtime.getURL('youtube-subtitles.js');
-      subtitlesScript.onload = function() {
-        this.remove();
-        // Initialize YouTube subtitles after script is loaded
-        if (window.initYouTubeSubtitle) {
-          try {
-            window.initYouTubeSubtitle();
-          } catch (e) {
-            console.error('Duck Translate: YouTube subtitles init error', e);
-          }
-        }
-      };
-      (document.head || document.documentElement).appendChild(subtitlesScript);
-    }
-  }
-
-  // Initialize YouTube subtitle support (non-blocking)
-  try {
-    injectScripts();
-  } catch (e) {
-    console.error('Duck Translate: Init error', e);
-  }
+  console.log('Duck Translate content script loaded');
 })();
