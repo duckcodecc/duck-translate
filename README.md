@@ -12,13 +12,13 @@ A simple and efficient local selection translation extension, powered by MiniMax
 - **Beautiful Design** - Cute and playful UI
 - **Local Processing** - No data uploaded, privacy protected
 
-## 🚀 MiniMax Token Plan 惊喜上线！
+## 🚀 MiniMax Token Plan - Special Offer!
 
-新增语音、音乐、视频和图片生成权益。邀请好友享双重好礼，助力开发体验！
+New voice, music, video, and image generation benefits. Invite friends for double rewards!
 
-好友立享 **9折** 专属优惠 + Builder 权益，你赢返利 + 社区特权！
+Friends get **10% OFF** exclusive discount + Builder benefits, you earn rebates + community perks!
 
-👉 立即参与：[https://platform.minimaxi.com/subscribe/token-plan?code=KgHnHo1y49&source=link](https://platform.minimaxi.com/subscribe/token-plan?code=KgHnHo1y49&source=link)
+👉 Join now: [https://platform.minimaxi.com/subscribe/token-plan?code=KgHnHo1y49&source=link](https://platform.minimaxi.com/subscribe/token-plan?code=KgHnHo1y49&source=link)
 
 ## 📦 Installation
 
