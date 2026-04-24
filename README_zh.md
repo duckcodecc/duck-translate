@@ -10,6 +10,14 @@
 - **简洁美观** - 可爱活泼的 UI 设计
 - **本地运行** - 无需上传数据，保护隐私
 
+## 🚀 MiniMax Token Plan 惊喜上线！
+
+新增语音、音乐、视频和图片生成权益。邀请好友享双重好礼，助力开发体验！
+
+好友立享 **9折** 专属优惠 + Builder 权益，你赢返利 + 社区特权！
+
+👉 立即参与：[https://platform.minimaxi.com/subscribe/token-plan?code=KgHnHo1y49&source=link](https://platform.minimaxi.com/subscribe/token-plan?code=KgHnHo1y49&source=link)
+
 ## 📦 安装
 
 1. 下载本仓库代码
