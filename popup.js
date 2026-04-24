@@ -5,9 +5,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sourceLangSelect = document.getElementById('sourceLang');
   const targetLangSelect = document.getElementById('targetLang');
   const translateBtn = document.getElementById('translateBtn');
+  const ttsBtn = document.getElementById('ttsBtn');
   const settingsBtn = document.getElementById('settingsBtn');
-  const openSettingsLink = document.getElementById('openSettings');
   const statusDiv = document.getElementById('status');
+  let currentAudio = null;
 
   // 加载设置
   let settings = {
@@ -83,9 +84,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.runtime.openOptionsPage();
   });
 
-  openSettingsLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    chrome.runtime.openOptionsPage();
+  // TTS 按钮点击
+  ttsBtn.addEventListener('click', async () => {
+    const text = textInput.value.trim();
+
+    if (!text) {
+      showStatus('Please enter text to listen');
+      return;
+    }
+
+    if (!settings.apiKey) {
+      showStatus('Please set your MiniMax API key in Settings');
+      return;
+    }
+
+    ttsBtn.disabled = true;
+    ttsBtn.textContent = '🔊 Playing...';
+
+    try {
+      // 停止之前的音频
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+
+      const response = await chrome.runtime.sendMessage({
+        action: 'generateTTS',
+        text: text,
+        targetLang: targetLangSelect.value
+      });
+
+      if (response.success && response.audioDataUrl) {
+        currentAudio = new Audio(response.audioDataUrl);
+        currentAudio.play().then(() => {
+          console.log('TTS playback started');
+        }).catch((error) => {
+          console.error('TTS playback error:', error);
+          showStatus('Failed to play audio');
+        });
+
+        currentAudio.onended = function() {
+          ttsBtn.disabled = false;
+          ttsBtn.textContent = '🔊 Listen';
+        };
+
+        currentAudio.onerror = function(error) {
+          console.error('Audio error:', error);
+          ttsBtn.disabled = false;
+          ttsBtn.textContent = '🔊 Listen';
+          showStatus('Failed to play audio');
+        };
+      } else {
+        showStatus(response.error || 'TTS failed');
+        ttsBtn.disabled = false;
+        ttsBtn.textContent = '🔊 Listen';
+      }
+    } catch (error) {
+      showStatus(error.message || 'TTS failed');
+      ttsBtn.disabled = false;
+      ttsBtn.textContent = '🔊 Listen';
+    }
   });
 
   // 监听来自 content script 的翻译请求结果

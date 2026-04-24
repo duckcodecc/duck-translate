@@ -400,7 +400,7 @@
     popup.style.top = top + 'px';
   }
 
-  function showTranslation(text, result, error, targetLang, audioDataUrl, ttsError, settings) {
+  function showTranslation(text, result, error, targetLang, sourceAudioDataUrl, translationAudioDataUrl, ttsError, settings) {
     if (!currentPopup) return;
     if (error === undefined) error = null;
     if (ttsError === undefined) ttsError = null;
@@ -440,15 +440,16 @@
     if (enableTTS) {
       if (ttsError) {
         ttsHtml = '<div class="duck-popup-tts-error">🔊 TTS Error: ' + escapeHtml(ttsError) + '</div>';
-      } else if (!audioDataUrl) {
-        ttsHtml = '<div class="duck-popup-tts-error">🔊 TTS not available</div>';
       }
+      // TTS is now generated on demand, so it's always available when enableTTS is true
     }
 
     var actionsHtml = '<button class="duck-popup-btn" data-action="copy">Copy</button>' +
       '<button class="duck-popup-btn primary" data-action="swap">Swap & Translate</button>';
     if (enableTTS) {
-      actionsHtml = '<button class="duck-popup-btn" data-action="tts">🔊 朗读</button>' + actionsHtml;
+      actionsHtml = '<button class="duck-popup-btn" data-action="tts-source">🔊 原文</button>' +
+                   '<button class="duck-popup-btn" data-action="tts-translation">🔊 译文</button>' +
+                   actionsHtml;
     }
 
     content.innerHTML = '<div class="duck-popup-source">' + escapeHtml(sourceText) + '</div>' +
@@ -457,79 +458,127 @@
       ttsHtml +
       '<div class="duck-popup-actions">' + actionsHtml + '</div>';
 
-    // TTS button handler - only if enableTTS is enabled
+    // TTS button handlers - only if enableTTS is enabled
     if (enableTTS) {
-      var ttsBtn = content.querySelector('[data-action="tts"]');
-      if (ttsBtn) {
-        ttsBtn.addEventListener('click', function() {
+      let ttsSourceTimeout = null;
+      let ttsTranslationTimeout = null;
+      
+      // Source text TTS button (original text)
+      var ttsSourceBtn = content.querySelector('[data-action="tts-source"]');
+      if (ttsSourceBtn) {
+        ttsSourceBtn.addEventListener('click', function() {
           var btn = this;
-
-          // Use pre-generated audio if available
-          if (audioDataUrl) {
-            btn.textContent = '🔊 播放中...';
-            btn.disabled = true;
-
-            // Stop previous audio
-            if (currentAudio) {
-              currentAudio.pause();
-              currentAudio = null;
-            }
-
-            try {
-              currentAudio = new Audio(audioDataUrl);
-              currentAudio.play().then(function() {
-                console.log('Duck Translate: TTS playback started');
-              }).catch(function(error) {
-                console.error('Duck Translate: TTS playback error:', error);
-                btn.textContent = '🔊 朗读';
-                btn.disabled = false;
-              });
+          
+          // Debounce to prevent multiple rapid clicks
+          clearTimeout(ttsSourceTimeout);
+          ttsSourceTimeout = setTimeout(function() {
+            // Use pre-generated audio if available
+            if (sourceAudioDataUrl) {
+              playAudio(sourceAudioDataUrl, btn, 'tts-source');
+            } else {
+              // Fall back to generating audio on demand via background
+              btn.textContent = '🔊 播放中...';
+              btn.disabled = true;
               
-              currentAudio.onended = function() {
-                btn.textContent = '🔊 朗读';
-                btn.disabled = false;
-              };
+              console.log('Duck Translate: Generating TTS for source text:', text.substring(0, 30) + (text.length > 30 ? '...' : ''));
               
-              currentAudio.onerror = function(error) {
-                console.error('Duck Translate: Audio error:', error);
-                btn.textContent = '🔊 朗读';
+              chrome.runtime.sendMessage({
+                action: 'generateTTS',
+                text: text,  // Use original source text (full text)
+                targetLang: targetLang || 'en' // Default to English for source
+              }, function(response) {
+                btn.textContent = '🔊 原文';
                 btn.disabled = false;
-              };
-            } catch (error) {
-              console.error('Duck Translate: TTS error:', error);
-              btn.textContent = '🔊 朗读';
-              btn.disabled = false;
-            }
-          } else {
-            // Fall back to generating audio on demand via background
-            btn.textContent = '🔊 播放中...';
-            btn.disabled = true;
-            
-            chrome.runtime.sendMessage({
-              action: 'generateTTS',
-              text: translationText,
-              targetLang: targetLang || 'zh-CN'
-            }, function(response) {
-              btn.textContent = '🔊 朗读';
-              btn.disabled = false;
-              
-              if (response && response.success && response.audioDataUrl) {
-                try {
-                  // Stop previous audio
-                  if (currentAudio) {
-                    currentAudio.pause();
-                    currentAudio = null;
+                
+                if (response && response.success && response.audioDataUrl) {
+                  try {
+                    playAudio(response.audioDataUrl, btn, 'tts-source');
+                  } catch (error) {
+                    console.error('Duck Translate: TTS playback error:', error);
                   }
-                  
-                  currentAudio = new Audio(response.audioDataUrl);
-                  currentAudio.play();
-                } catch (error) {
-                  console.error('Duck Translate: TTS playback error:', error);
                 }
-              }
-            });
-          }
+              });
+            }
+          }, 200); // 200ms debounce
         });
+      }
+
+      // Translation TTS button
+      var ttsTranslationBtn = content.querySelector('[data-action="tts-translation"]');
+      if (ttsTranslationBtn) {
+        ttsTranslationBtn.addEventListener('click', function() {
+          var btn = this;
+          
+          // Debounce to prevent multiple rapid clicks
+          clearTimeout(ttsTranslationTimeout);
+          ttsTranslationTimeout = setTimeout(function() {
+            // Use pre-generated audio if available
+            if (translationAudioDataUrl) {
+              playAudio(translationAudioDataUrl, btn, 'tts-translation');
+            } else {
+              // Fall back to generating audio on demand via background
+              btn.textContent = '🔊 播放中...';
+              btn.disabled = true;
+              
+              console.log('Duck Translate: Generating TTS for translation text:', translationText.substring(0, 30) + (translationText.length > 30 ? '...' : ''));
+              
+              chrome.runtime.sendMessage({
+                action: 'generateTTS',
+                text: translationText,  // Use full translation text
+                targetLang: targetLang || 'zh-CN'
+              }, function(response) {
+                btn.textContent = '🔊 译文';
+                btn.disabled = false;
+                
+                if (response && response.success && response.audioDataUrl) {
+                  try {
+                    playAudio(response.audioDataUrl, btn, 'tts-translation');
+                  } catch (error) {
+                    console.error('Duck Translate: TTS playback error:', error);
+                  }
+                }
+              });
+            }
+          }, 200); // 200ms debounce
+        });
+      }
+    }
+
+    // Helper function to play audio
+    function playAudio(audioDataUrl, btn, actionType) {
+      btn.textContent = '🔊 播放中...';
+      btn.disabled = true;
+
+      // Stop previous audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+
+      try {
+        currentAudio = new Audio(audioDataUrl);
+        currentAudio.play().then(function() {
+          console.log('Duck Translate: TTS playback started');
+        }).catch(function(error) {
+          console.error('Duck Translate: TTS playback error:', error);
+          btn.textContent = actionType === 'tts-source' ? '🔊 原文' : '🔊 译文';
+          btn.disabled = false;
+        });
+        
+        currentAudio.onended = function() {
+          btn.textContent = actionType === 'tts-source' ? '🔊 原文' : '🔊 译文';
+          btn.disabled = false;
+        };
+        
+        currentAudio.onerror = function(error) {
+          console.error('Duck Translate: Audio error:', error);
+          btn.textContent = actionType === 'tts-source' ? '🔊 原文' : '🔊 译文';
+          btn.disabled = false;
+        };
+      } catch (error) {
+        console.error('Duck Translate: TTS error:', error);
+        btn.textContent = actionType === 'tts-source' ? '🔊 原文' : '🔊 译文';
+        btn.disabled = false;
       }
     }
 
@@ -597,6 +646,7 @@
         x = rect.right + 10;
         y = rect.top;
       } else {
+        // For swap operation or when no selection, use current mouse position or last known position
         x = lastMouseX + 10;
         y = lastMouseY;
       }
@@ -621,9 +671,9 @@
       });
 
       if (response && response.success) {
-        showTranslation(text, response.result, null, targetLang, response.audioDataUrl, response.ttsError, settings);
+        showTranslation(text, response.result, null, targetLang, null, null, null, settings);
       } else {
-        showTranslation(text, null, response?.error || 'Translation failed', targetLang, null, null, settings);
+        showTranslation(text, null, response?.error || 'Translation failed', targetLang, null, null, null, settings);
       }
     } catch (error) {
       showTranslation(text, null, error.message || 'Translation failed');
@@ -641,20 +691,54 @@
   });
 
   var selectionTimeout = null;
+  var lastSelectedText = '';
+  var lastSelectionTime = 0;
+  var isMouseDown = false;
+  var mouseDownTime = 0;
+  
+  // Mousedown handler to track selection start
+  document.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return; // Only left mouse button
+    isMouseDown = true;
+    mouseDownTime = Date.now();
+  });
+  
+  // Mouseup handler for selection
   document.addEventListener('mouseup', function(e) {
+    if (e.button !== 0) return; // Only left mouse button
     if (e.target.closest('#duck-translate-popup')) return;
-
+    
+    // Minimum selection time to avoid accidental clicks
+    var selectionTime = Date.now() - mouseDownTime;
+    if (selectionTime < 100) return; // Ignore very quick clicks
+    
     clearTimeout(selectionTimeout);
     selectionTimeout = setTimeout(function() {
       var selection = window.getSelection();
       var text = selection.toString().trim();
+      var now = Date.now();
 
-      if (text && text.length > 0 && text.length < 5000) {
+      // Only translate if:
+      // 1. Text is not empty
+      // 2. Text length is reasonable (1-5000 chars)
+      // 3. Text is different from last translation
+      // 4. Enough time has passed since last translation
+      // 5. Selection is not just a single word (optional)
+      if (text && 
+          text.length > 0 && 
+          text.length < 5000 && 
+          text !== lastSelectedText && 
+          (now - lastSelectionTime > 800)) {
+        
+        lastSelectedText = text;
+        lastSelectionTime = now;
+        
+        // Small delay to ensure selection is complete
         setTimeout(function() {
           performTranslation(text);
-        }, 100);
+        }, 150);
       }
-    }, 300);
+    }, 600); // Increased timeout to 600ms for better debouncing
   });
 
   document.addEventListener('dblclick', function(e) {
@@ -666,9 +750,38 @@
     }
   });
 
+  // Inject scripts for YouTube support
+  function injectScripts() {
+    if (window.location.href.includes('youtube.com/watch')) {
+      // Inject YouTube player data script
+      const injectScript = document.createElement('script');
+      injectScript.src = chrome.runtime.getURL('youtube-inject.js');
+      injectScript.onload = function() {
+        this.remove();
+      };
+      (document.head || document.documentElement).appendChild(injectScript);
+
+      // Inject YouTube subtitles script
+      const subtitlesScript = document.createElement('script');
+      subtitlesScript.src = chrome.runtime.getURL('youtube-subtitles.js');
+      subtitlesScript.onload = function() {
+        this.remove();
+        // Initialize YouTube subtitles after script is loaded
+        if (window.initYouTubeSubtitle) {
+          try {
+            window.initYouTubeSubtitle();
+          } catch (e) {
+            console.error('Duck Translate: YouTube subtitles init error', e);
+          }
+        }
+      };
+      (document.head || document.documentElement).appendChild(subtitlesScript);
+    }
+  }
+
   // Initialize YouTube subtitle support (non-blocking)
   try {
-    initYouTubeSubtitle();
+    injectScripts();
   } catch (e) {
     console.error('Duck Translate: Init error', e);
   }

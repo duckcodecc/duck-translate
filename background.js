@@ -186,12 +186,31 @@ const LANGUAGE_BOOST_MAP = {
 
 // Convert hex string to array buffer
 function hexToBuffer(hex) {
+  if (!hex || typeof hex !== 'string') {
+    return new ArrayBuffer(0);
+  }
   const buffer = new ArrayBuffer(hex.length / 2);
   const view = new Uint8Array(buffer);
   for (let i = 0; i < hex.length; i += 2) {
     view[i / 2] = parseInt(hex.substr(i, 2), 16);
   }
   return buffer;
+}
+
+// Safely convert array buffer to base64
+function bufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192; // Process in chunks to avoid stack overflow
+  
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    for (let j = 0; j < chunk.length; j++) {
+      binary += String.fromCharCode(chunk[j]);
+    }
+  }
+  
+  return btoa(binary);
 }
 
 // Deep log object to see all properties
@@ -331,7 +350,7 @@ async function generateTTS(text, targetLang, apiKey, settings) {
     const buffer = hexToBuffer(audioData);
     
     // Convert to base64 for easier transfer
-    const base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
+    const base64 = bufferToBase64(buffer);
     const audioType = settings.ttsFormat || 'mp3';
     const dataUrl = `data:audio/${audioType};base64,${base64}`;
     
@@ -408,26 +427,10 @@ async function handleTranslate(request, sender, sendResponse) {
       settings.apiKey
     );
 
-    // Generate TTS audio for the translation (only if enableTTS is enabled)
-    let audioDataUrl = null;
-    let ttsError = null;
-    if (settings.enableTTS && settings.apiKey) {
-      // Extract just the translation text from the AI response
-      const parsed = parseTranslationResult(result);
-      const translationText = parsed.translation;
-      if (translationText) {
-        const actualTargetLang = targetLang || settings.targetLang;
-        const ttsResult = await generateTTS(translationText, actualTargetLang, settings.apiKey, settings);
-        if (ttsResult.success) {
-          audioDataUrl = ttsResult.audioDataUrl;
-        } else {
-          ttsError = ttsResult.error;
-          console.warn('Duck Translate: TTS generation failed:', ttsError);
-        }
-      }
-    }
+    // TTS is now only generated when user clicks the TTS buttons
+    // This reduces API calls and saves costs
 
-    sendResponse({ success: true, result, audioDataUrl, ttsError });
+    sendResponse({ success: true, result });
   } catch (error) {
     sendResponse({ success: false, error: error.message });
   }
