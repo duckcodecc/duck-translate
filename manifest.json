@@ -44,5 +44,6 @@
       "resources": ["youtube-inject.js", "youtube-subtitles.js"],
       "matches": ["<all_urls>"]
     }
-  ]
+  ],
+  "privacy_policy_url": "https://github.com/duckcodecc/duck-translate/blob/main/privacy_policy.md"
 }
