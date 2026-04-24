@@ -547,14 +547,14 @@
     }
   });
 
-  // Mouseup handler
+  // Mouseup handler - Fixed for left-to-right selection
   document.addEventListener('mouseup', function(e) {
     if (e.button !== 0) return;
     if (e.target.closest('#duck-selection-toolbar')) return;
     if (e.target.closest('#duck-translate-popup')) return;
     
     var selectionTime = Date.now() - mouseDownTime;
-    if (selectionTime < 100) return;
+    if (selectionTime < 50) return; // Reduced threshold to 50ms
     
     clearTimeout(selectionTimeout);
     selectionTimeout = setTimeout(function() {
@@ -562,17 +562,17 @@
       var text = selection.toString().trim();
       var now = Date.now();
 
-      if (text && text.length > 0 && text.length < 5000 && text !== lastSelectedText && (now - lastSelectionTime > 800)) {
+      if (text && text.length > 0 && text.length < 5000 && text !== lastSelectedText && (now - lastSelectionTime > 500)) {
         lastSelectedText = text;
         lastSelectionTime = now;
         
         setTimeout(function() {
           showSelectionToolbar(e.clientX, e.clientY, selectionStartX, selectionStartY);
-        }, 150);
+        }, 100); // Reduced delay
       } else if (!text) {
         hideSelectionToolbar();
       }
-    }, 600);
+    }, 300); // Reduced debounce to 300ms
   });
 
   // Hide toolbar on scroll
